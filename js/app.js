@@ -777,6 +777,17 @@
   }
   function getOutputs() { return outputs && outputs.files ? Promise.resolve(outputs.files) : (outputs ? outputs.promise : prepareOutputs()); }
 
+  /** PDFs dos documentos atuais, gerados uma vez e reaproveitados (baixar e compartilhar). */
+  function getPdfs(onProgress) {
+    var job = outputs || (prepareOutputs(), outputs);
+    if (!job.pdfs) {
+      job.pdfs = job.promise.then(function (files) { return Pdf.toFiles(files, function (i, n) { if (job.onPdfProgress) job.onPdfProgress(i, n); }); });
+      job.pdfs.then(function (p) { job.pdfFiles = p; }, function () { job.pdfs = null; });
+    }
+    job.onPdfProgress = onProgress || null;
+    return job.pdfs;
+  }
+
   async function busy(btn, label, fn) {
     var keep = Array.prototype.slice.call(btn.childNodes);
     btn.disabled = true; btn.textContent = label;
@@ -799,8 +810,7 @@
 
   function doPdfFiles(btn) {
     return busy(btn, 'Gerando PDF…', async function () {
-      var files = await getOutputs();
-      var pdfs = await Pdf.toFiles(files, function (i, n) { btn.textContent = n > 1 ? 'Gerando PDF ' + i + ' de ' + n + '…' : 'Gerando PDF…'; });
+      var pdfs = await getPdfs(function (i, n) { btn.textContent = n > 1 ? 'Gerando PDF ' + i + ' de ' + n + '…' : 'Gerando PDF…'; });
       if (pdfs.length === 1) { download(pdfs[0].blob, pdfs[0].name); toast('PDF baixado!'); return; }
       btn.textContent = 'Compactando…';
       var zip = new JSZip();
@@ -818,22 +828,70 @@
     });
   }
 
+  // "Compartilhar" abre a lista do sistema (WhatsApp, e-mail…). Só aparece em celular/tablet:
+  // no computador os navegadores aceitam poucos tipos de arquivo e o recurso confunde.
   var canShareFiles = (function () {
-    try { return !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.txt', { type: 'text/plain' })] })); }
-    catch (e) { return false; }
+    try {
+      var touch = window.matchMedia('(pointer: coarse)').matches;
+      return touch && !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] }));
+    } catch (e) { return false; }
   })();
 
-  async function doShare() {
-    var files = outputs && outputs.files;
-    if (!files) { toast('Ainda preparando os documentos… toque de novo em um instante.'); return; }
-    var list = files.map(function (f) { return new File([f.blob], f.name, { type: f.blob.type || 'application/octet-stream' }); });
-    var data = { files: list, title: list.length === 1 ? list[0].name : baseName() };
-    if (!navigator.canShare(data)) {
-      toast('Este celular não permite compartilhar esse tipo de arquivo. Use “Baixar”.', 'err');
-      return;
+  var MIME = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', md: 'text/markdown', txt: 'text/plain' };
+  var FORMAT_LABEL = { docx: 'Word (.docx)', md: 'Markdown (.md)', txt: 'Texto (.txt)' };
+
+  function asFiles(list) {
+    return list.map(function (f) { return new File([f.blob], f.name, { type: MIME[f.ext] || f.blob.type || 'application/octet-stream' }); });
+  }
+  function canShareList(files) { try { return navigator.canShare({ files: files }); } catch (e) { return false; } }
+
+  /** Pergunta o formato (PDF ou original) e abre a lista de compartilhamento do aparelho. */
+  function doShare() {
+    var n = state.records.length, ext = state.doc.ext;
+    var dlg = h('dialog', { class: 'modal', 'aria-labelledby': 'sh-t' });
+    var note = h('p', { class: 'small share-note', 'aria-live': 'polite' });
+    var pdfBtn = h('button', { class: 'btn primary', type: 'button', id: 'share-pdf', disabled: true }, 'Preparando PDF…');
+    var origBtn = h('button', { class: 'btn', type: 'button', id: 'share-orig', disabled: true }, 'Preparando…');
+    var close = h('button', { class: 'btn ghost', type: 'button', onclick: function () { dlg.close(); } }, 'Cancelar');
+
+    // O navigator.share precisa ser chamado logo após o toque, por isso os arquivos já ficam prontos antes.
+    function arm(btn, label, files) {
+      btn.textContent = '';
+      btn.appendChild(icon(files[0].type === 'application/pdf' ? 'file' : 'share', 18));
+      if (!canShareList(files)) {
+        btn.appendChild(document.createTextNode(label + ' — não aceito neste aparelho'));
+        btn.disabled = true; return;
+      }
+      btn.appendChild(document.createTextNode(label));
+      btn.disabled = false;
+      btn.onclick = async function () {
+        note.textContent = ''; note.className = 'small share-note';
+        try { await navigator.share({ files: files, title: n === 1 ? files[0].name : baseName() }); dlg.close(); }
+        catch (e) {
+          if (e.name === 'AbortError') return; // a pessoa fechou a lista
+          note.className = 'small share-note warn';
+          note.textContent = e.name === 'NotAllowedError'
+            ? 'O aparelho recusou o envio desse tipo de arquivo. Tente o outro formato ou use “Baixar”.'
+            : 'Não foi possível compartilhar (' + (e.message || e.name) + '). Use “Baixar”.';
+        }
+      };
     }
-    try { await navigator.share(data); }
-    catch (e) { if (e.name !== 'AbortError') toast('Não foi possível compartilhar: ' + e.message, 'err'); }
+
+    var suffix = n > 1 ? ' (' + n + ' arquivos)' : '';
+    getOutputs().then(function (files) { arm(origBtn, (FORMAT_LABEL[ext] || ext) + suffix, asFiles(files)); });
+    getPdfs(function (i, total) { if (pdfBtn.disabled) pdfBtn.textContent = total > 1 ? 'Preparando PDF ' + i + ' de ' + total + '…' : 'Preparando PDF…'; })
+      .then(function (pdfs) { arm(pdfBtn, 'PDF' + suffix, asFiles(pdfs)); }, function () { pdfBtn.textContent = 'Não foi possível gerar o PDF'; });
+
+    append(dlg, h('div', { class: 'modal-in' },
+      h('div', { class: 'modal-ic info' }, icon('share', 24)),
+      h('h2', { id: 'sh-t', text: 'Compartilhar' }),
+      h('p', { text: 'Escolha o formato. Em seguida, escolha o WhatsApp, o e-mail ou outro app do celular.' }),
+      h('div', { class: 'share-opts' }, pdfBtn, origBtn),
+      note,
+      h('div', { class: 'modal-actions' }, close)));
+    dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+    dlg.addEventListener('close', function () { dlg.remove(); });
+    document.body.appendChild(dlg); dlg.showModal(); close.focus();
   }
 
   function viewDownload() {

@@ -401,6 +401,47 @@ with sync_playwright() as pw:
     check(not errors, 'sem erros no console: ' + '; '.join(errors)[:200])
     br.close()
 
+# ---------------- 12) Compartilhar ----------------
+print('12) Compartilhar: só no celular, escolhendo PDF ou o formato original')
+STUB = '''(() => {
+  window.__shared = null;
+  // Simula um aparelho que aceita PDF mas recusa .docx (como o Chrome no Windows)
+  navigator.canShare = (d) => !!(d && d.files && d.files.every(f => f.type === 'application/pdf' || f.type.startsWith('text/')));
+  navigator.share = async (d) => { window.__shared = d.files.map(f => [f.name, f.type, f.size]); };
+})()'''
+with sync_playwright() as pw:
+    br = pw.chromium.launch()
+    def step4(ctx, doc, rows):
+        pg = ctx.new_page(); pg.goto(URL)
+        pg.set_input_files('input[type=file]', str(ROOT / 'exemplos' / doc)); pg.wait_for_selector('text=Encontramos')
+        pg.click('text=Continuar'); pg.click('text=Pular para a conferência'); pg.wait_for_selector('text=Confira antes de baixar')
+        pg.evaluate('''(rows) => { const s = __app.state; s.records = rows.map(r => { const o = {}; s.fields.forEach(f => { if (r[f.key] !== undefined) o[f.id] = r[f.key]; }); return o; }); }''', rows)
+        pg.click('text=Continuar >> nth=-1'); pg.wait_for_selector('text=Tudo pronto')
+        return pg
+    desk = br.new_context(viewport={'width': 1280, 'height': 800}); desk.add_init_script(STUB)
+    pg = step4(desk, 'modelo-contrato.docx', [{'nome': 'Ana'}])
+    check(pg.locator('#btn-share').count() == 0, 'no computador o botão Compartilhar não aparece')
+    mob = br.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True); mob.add_init_script(STUB)
+    pg = step4(mob, 'modelo-contrato.docx', [{'nome': 'Ana', 'cnpj': '12345678000190'}])
+    check(pg.locator('#btn-share').count() == 1, 'no celular o botão Compartilhar aparece')
+    pg.click('#btn-share'); pg.wait_for_selector('dialog[open]')
+    pg.wait_for_function("!document.getElementById('share-pdf').disabled", timeout=30000)
+    check(pg.is_disabled('#share-orig') and 'não aceito neste aparelho' in pg.inner_text('#share-orig'), 'formato recusado pelo aparelho aparece desativado, com o motivo')
+    pg.screenshot(path=str(TMP / 'share.png'))
+    pg.click('#share-pdf'); pg.wait_for_function('window.__shared !== null')
+    sh = pg.evaluate('window.__shared')
+    check(sh == [[sh[0][0], 'application/pdf', sh[0][2]]] and sh[0][0] == 'modelo-contrato_preenchido.pdf' and sh[0][2] > 5000, f'compartilha o PDF pronto {sh}')
+    check(pg.locator('dialog').count() == 0 or not pg.is_visible('dialog'), 'janela fecha depois de compartilhar')
+    # lote de .md: os dois formatos aceitos, vários arquivos
+    rows = [{'nome': n} for n in ['Ana', 'Bia']]
+    pg = step4(mob, 'modelo-proposta.md', rows)
+    pg.click('#btn-share'); pg.wait_for_selector('dialog[open]')
+    pg.wait_for_function("!document.getElementById('share-orig').disabled")
+    check('Markdown (.md) (2 arquivos)' in pg.inner_text('#share-orig'), 'lote: opção do formato original com a quantidade')
+    pg.click('#share-orig'); pg.wait_for_function('window.__shared !== null')
+    check([x[0] for x in pg.evaluate('window.__shared')] == ['modelo-proposta_Ana.md', 'modelo-proposta_Bia.md'], 'lote: compartilha os 2 arquivos')
+    br.close()
+
 # ---------------- 8) PWA via servidor http (como no GitHub Pages) ----------------
 print('8) PWA: instalar e funcionar offline')
 sock = socket.socket(); sock.bind(('127.0.0.1', 0)); port = sock.getsockname()[1]; sock.close()

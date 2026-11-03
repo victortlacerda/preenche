@@ -364,3 +364,9 @@ body { padding-bottom: env(safe-area-inset-bottom); }
   /* As margens da página vêm do @page (copiado do .docx) */
   #print-area section.docx:not(:last-of-type) { break-after: page; }
 }
+
+/* Compartilhar */
+.share-opts { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 6px; }
+.share-opts .btn { width: 100%; }
+.share-note:empty { display: none; }
+.share-note.warn { color: var(--warn); }
