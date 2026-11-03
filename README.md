@@ -68,7 +68,7 @@ Contrato firmado com {{razão social}}, CNPJ {{cnpj}}, telefone {{telefone}}.
 
 - O mesmo campo pode se repetir quantas vezes quiser.
 - Maiúsculas e acentos não fazem diferença: `{{Nome}}` e `{{nome}}` são o mesmo campo.
-- Documento antigo, sem marcações? Na conferência, use **Adicionar troca de texto** (por exemplo, trocar "Empresa XYZ" por outro nome).
+- Documento antigo, sem marcações? Na conferência, use **Adicionar troca de texto** (por exemplo, trocar "Empresa XYZ" por outro nome). Pela planilha é igual: crie uma coluna com o texto exato do documento no cabeçalho e o novo valor em cada linha.
 - Documentos de exemplo para testar: [`exemplos/`](exemplos/).
 
 ### Formatação automática

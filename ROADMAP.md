@@ -169,6 +169,10 @@ Comparativo das formas possíveis:
   - De quebra: cabeçalho em negrito com fundo colorido, primeira linha congelada e colunas inteiras em formato Texto (não só as 200 primeiras linhas)
   - Vale para a planilha-modelo e para "Baixar dados em planilha"
 
+- [x] **Coluna extra na planilha = troca de texto.** Se o cabeçalho de uma coluna não é um campo, mas aparece no documento (ex.: `Empresa XYZ`), esse texto é trocado pelo valor de cada linha, como em "Adicionar troca de texto"
+  - Cabeçalho que não aparece no documento é ignorado com aviso (precisa estar escrito igual, com maiúsculas e acentos)
+  - A planilha exportada pelo app leva essas colunas, e reimportar funciona igual
+
 **Dica para planilhas:** a planilha-modelo do app já vem com as células em formato Texto, o que evita esses problemas na origem. Se usar outra planilha, formate as colunas como Texto antes de digitar.
 
 ### v0.4 — Conforto
@@ -250,3 +254,4 @@ Passo a passo no `README.md`. Resumo: subir a pasta para um repositório → *Se
 | 03/11/2026 | Projeto publicado no GitHub com CI de testes. README em formato de apresentação, com prints do app (desktop, celular, antes e depois) gerados por `docs/gerar_prints.py`. |
 | 03/11/2026 | v0.3: PDFs separados em .zip e PDF direto (sem impressão); datas e números da planilha robustos (zero perdido, células de data, CSV). 85 verificações automatizadas passando. |
 | 03/11/2026 | Planilhas geradas pelo próprio app (formato Excel limpo): corrige o erro do Modo de Exibição Protegida ao abrir a planilha baixada. 88 verificações automatizadas. |
+| 03/11/2026 | Coluna extra na planilha vira troca de texto quando o cabeçalho aparece no documento. 96 verificações automatizadas. |
