@@ -164,6 +164,11 @@ Comparativo das formas possíveis:
 - [x] **Números da planilha** lidos pelo valor da célula: `1.500,50` com formato do Excel não vira mais "1,500.50"
 - [x] **CSV** lido como texto puro: `010126` e `03/11/2026` chegam exatamente como digitados
 
+- [x] **Planilha abre direto no Excel, mesmo baixada da internet** (antes o Modo de Exibição Protegida dava erro e era preciso "Desbloquear" nas propriedades)
+  - O .xlsx agora é montado pelo próprio app, no formato que o Excel salva: sem marcas de pasta com macro, sem formato numérico inválido e com células de texto do tipo padrão
+  - De quebra: cabeçalho em negrito com fundo colorido, primeira linha congelada e colunas inteiras em formato Texto (não só as 200 primeiras linhas)
+  - Vale para a planilha-modelo e para "Baixar dados em planilha"
+
 **Dica para planilhas:** a planilha-modelo do app já vem com as células em formato Texto, o que evita esses problemas na origem. Se usar outra planilha, formate as colunas como Texto antes de digitar.
 
 ### v0.4 — Conforto
@@ -244,3 +249,4 @@ Passo a passo no `README.md`. Resumo: subir a pasta para um repositório → *Se
 | 03/11/2026 | v0.2: salvar em PDF (1 documento ou lote num PDF só); PWA instalável e offline; compartilhar no celular. 65 verificações automatizadas passando (incl. PDF gerado e lido de volta, e uso offline via servidor http). |
 | 03/11/2026 | Projeto publicado no GitHub com CI de testes. README em formato de apresentação, com prints do app (desktop, celular, antes e depois) gerados por `docs/gerar_prints.py`. |
 | 03/11/2026 | v0.3: PDFs separados em .zip e PDF direto (sem impressão); datas e números da planilha robustos (zero perdido, células de data, CSV). 85 verificações automatizadas passando. |
+| 03/11/2026 | Planilhas geradas pelo próprio app (formato Excel limpo): corrige o erro do Modo de Exibição Protegida ao abrir a planilha baixada. 88 verificações automatizadas. |
