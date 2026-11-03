@@ -63,6 +63,53 @@
     return toBlob(wb);
   }
 
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  /**
+   * Texto de uma célula, do jeito que a pessoa espera ver no documento:
+   * - célula de data do Excel → dd/mm/aaaa (sem inverter dia e mês)
+   * - número → valor guardado (1500.5, 12345678000190), sem o formato
+   *   americano que o Excel/SheetJS aplicaria ("1,500.50")
+   * - texto → como digitado
+   */
+  function cellText(cell) {
+    if (!cell || cell.v == null) return '';
+    if (cell.t === 'd' && cell.v instanceof Date) {
+      return pad2(cell.v.getDate()) + '/' + pad2(cell.v.getMonth() + 1) + '/' + cell.v.getFullYear();
+    }
+    if (cell.t === 'n') {
+      var fmt = cell.z || '';
+      if (fmt && fmt !== 'General' && XLSX.SSF.is_date(fmt)) {
+        var p = XLSX.SSF.parse_date_code(cell.v);
+        if (p && p.y) {
+          var hasTime = (p.H || p.M) && /[hs]/i.test(fmt.replace(/\[[^\]]*\]|"[^"]*"/g, ''));
+          return pad2(p.d) + '/' + pad2(p.m) + '/' + p.y + (hasTime ? ' ' + pad2(p.H) + ':' + pad2(p.M) : '');
+        }
+      }
+      if (/%/.test(fmt)) return cell.w != null ? String(cell.w) : String(cell.v * 100) + '%';
+      var n = cell.v;
+      return Number.isInteger(n) ? String(n) : String(+n.toFixed(10));
+    }
+    if (cell.t === 'b') return cell.v ? 'Sim' : 'Não';
+    if (cell.t === 'e') return '';
+    return String(cell.v);
+  }
+
+  function sheetGrid(ws) {
+    if (!ws['!ref']) return [];
+    var range = XLSX.utils.decode_range(ws['!ref']), grid = [];
+    for (var r = range.s.r; r <= range.e.r; r++) {
+      var row = [], any = false;
+      for (var c = range.s.c; c <= range.e.c; c++) {
+        var v = cellText(ws[XLSX.utils.encode_cell({ r: r, c: c })]);
+        if (v.trim()) any = true;
+        row.push(v);
+      }
+      if (any) grid.push(row);
+    }
+    return grid;
+  }
+
   function cleanHeader(h) {
     return Core.normalizeKey(String(h).replace(/[{}\[\]]/g, ''));
   }
@@ -73,9 +120,10 @@
       var dec = new TextDecoder('utf-8');
       var text = dec.decode(buffer).replace(/^﻿/, '');
       if (text.indexOf('�') !== -1) text = new TextDecoder('windows-1252').decode(buffer);
-      return XLSX.read(text, { type: 'string' });
+      // raw: não deixa a biblioteca transformar 010126 em 10126 nem 03/11/2026 em data americana
+      return XLSX.read(text, { type: 'string', raw: true });
     }
-    return XLSX.read(buffer, { type: 'array' });
+    return XLSX.read(buffer, { type: 'array', cellNF: true, cellDates: false });
   }
 
   /**
@@ -92,7 +140,7 @@
     var sheetName = wb.SheetNames.indexOf('Dados') !== -1 ? 'Dados' : wb.SheetNames[0];
     var ws = wb.Sheets[sheetName];
     if (!ws) throw new Error('A planilha está vazia.');
-    var grid = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '', blankrows: false });
+    var grid = sheetGrid(ws);
     if (!grid.length) throw new Error('A planilha está vazia.');
 
     var byKey = new Map();

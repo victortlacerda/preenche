@@ -65,8 +65,27 @@
     return yes(d.slice(0, 5) + '-' + d.slice(5));
   }
 
+  /**
+   * Entende datas digitadas de vários jeitos, inclusive quando o Excel
+   * apaga o zero da frente: 010126 vira 10126 e 01012026 vira 1012026.
+   * Também aceita o número de série que o Excel usa para datas (46023 = 01/01/2026).
+   */
   function parseDate(v) {
-    var s = String(v).trim(), m, dd, mm, yy;
+    var s = String(v).trim();
+    var lostZero = /^\d{5}$/.test(s) || /^\d{7}$/.test(s);
+    var r = parseDateText(lostZero ? '0' + s : s);
+    if (!r && /^\d{5}$/.test(s)) r = excelSerial(+s);
+    return r;
+  }
+
+  function excelSerial(n) {
+    if (n < 20000 || n > 80000) return null; // ~1954 a ~2119
+    var d = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
+    return { d: d.getUTCDate(), m: d.getUTCMonth() + 1, y: d.getUTCFullYear() };
+  }
+
+  function parseDateText(s) {
+    var m, dd, mm, yy;
     if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) { yy = +m[1]; mm = +m[2]; dd = +m[3]; }
     else if ((m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/.exec(s))) { dd = +m[1]; mm = +m[2]; yy = +m[3]; }
     else if ((m = /^(\d{2})(\d{2})(\d{4})$/.exec(s))) { dd = +m[1]; mm = +m[2]; yy = +m[3]; }
