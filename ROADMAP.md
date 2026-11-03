@@ -2,7 +2,8 @@
 
 > Documento vivo: atualizamos a cada etapa do desenvolvimento.
 > **Legenda:** ✅ feito · 🚧 em andamento · 📝 planejado · ❓ decisão em aberto
-> **Última atualização:** 03/11/2026 — v0.3 (PDFs separados + datas da planilha)
+> **Última atualização:** 03/11/2026 — v0.3 (PDFs separados, planilhas robustas no Excel, colunas extras como troca de texto)
+> **App:** https://victortlacerda.github.io/preenche/ · **Código:** https://github.com/victortlacerda/preenche
 
 ---
 
@@ -25,11 +26,13 @@ App web, de cores claras e muito simples de usar, em que a pessoa:
 |---|---------|--------|--------|
 | A1 | **HTML + CSS + JavaScript puro**, sem build, sem framework | ✅ | Abre com duplo clique (`index.html`) e funciona direto no GitHub Pages. |
 | A2 | Nada de Python/Node em servidor | ✅ | GitHub Pages só serve arquivos estáticos. Python no navegador (Pyodide) pesaria ~10 MB+ e seria lento para abrir. |
-| A3 | Bibliotecas **incluídas na pasta `vendor/`** (JSZip, SheetJS) | ✅ | Funciona offline e o usuário não instala nada. |
+| A3 | Bibliotecas **incluídas na pasta `vendor/`**: JSZip, SheetJS (só leitura), docx-preview, marked, jsPDF, html2canvas | ✅ | Funciona offline e o usuário não instala nada. |
+| A3b | Planilhas `.xlsx` **geradas pelo próprio app** (com JSZip) | ✅ | O SheetJS CE gravava estruturas que o Modo de Exibição Protegida do Excel recusa. |
 | A4 | `.docx` editado direto no XML interno (zip) | ✅ | Preserva fontes, tabelas, imagens, cabeçalho e rodapé. Só o texto dos campos muda. |
 | A5 | Substituição que **funciona mesmo quando o Word divide o campo em pedaços** | ✅ | O Word costuma quebrar `{{nome}}` em vários trechos internos ("runs"). O motor junta o texto do parágrafo, localiza o campo e redistribui. |
 | A6 | Interface em português do Brasil | ✅ | Público-alvo. Estrutura pronta para outros idiomas depois. |
-| A7 | Sem salvar nada no navegador (sem localStorage) na v0.1 | ✅ | Documentos têm dados sensíveis (CNPJ, telefone). |
+| A7 | Sem salvar dados no navegador (sem localStorage) | ✅ | Documentos têm dados sensíveis (CNPJ, telefone). O cache offline guarda só os arquivos do app. |
+| A8 | Testes ponta a ponta no navegador + GitHub Actions a cada envio | ✅ | Cada mudança é verificada antes de chegar ao site. |
 
 ---
 
@@ -43,15 +46,15 @@ Comparativo das formas possíveis:
 | `[campo]` (colchetes) | docx, txt, md | Médio: conflita com links do Markdown `[texto](url)` e com "[sic]", "[•]" | Muito natural | 🟡 Opcional (em *Opções avançadas*) |
 | `[[campo]]` | docx, txt, md | Baixo | Boa | 🟡 Opcional |
 | `MAIÚSCULAS` | docx, txt, md | **Alto**: "CNPJ", "LTDA", títulos e siglas seriam confundidos com campos | Fácil, mas ambíguo | ❌ Descartado |
-| Texto **vermelho / destacado** no Word | **Só docx** | Médio: a cor pode ter outro uso; se o texto for copiado de outro lugar, perde a cor | Visual, mas a cor não diz *qual* campo é | 📝 Modo opcional na v0.3 (para documentos antigos) |
+| Texto **vermelho / destacado** no Word | **Só docx** | Médio: a cor pode ter outro uso; se o texto for copiado de outro lugar, perde a cor | Visual, mas a cor não diz *qual* campo é | 📝 Modo opcional na v0.5 (para documentos antigos) |
 | Controles de conteúdo do Word | Só docx | Nenhum | Difícil: exige a aba Desenvolvedor do Word | 📝 Avaliar na v1.0 |
-| **Texto livre** (o usuário diz "troque *Empresa XYZ* por …") | docx, txt, md | Nenhum (é literal) | Fácil | ✅ Já incluso na v0.1 como complemento |
+| **Texto livre** (o usuário diz "troque *Empresa XYZ* por …") | docx, txt, md | Nenhum (é literal) | Fácil | ✅ Incluso: na conferência (v0.1) e como coluna extra da planilha (v0.3) |
 
 **Recomendação:** `{{campo}}` como padrão + "texto livre" como plano B para documentos que já existem sem marcações. A cor vermelha entra depois, só como atalho para documentos legados.
 
 **Por que `{{ }}` e não só `[ ]`?** É o formato usado por quase todo gerador de documentos (mala direta, contratos, e-mails), então quem já viu "template" reconhece. Sobrevive a formatação, é fácil de achar com Ctrl+F e praticamente não aparece em texto normal.
 
-**Regras de reconhecimento (v0.1):**
+**Regras de reconhecimento:**
 
 - O nome do campo pode ter letras, números, espaços, acentos e `_` — ex.: `{{nome}}`, `{{Razão Social}}`, `{{data_assinatura}}`.
 - Espaços dentro das chaves são ignorados: `{{ nome }}` = `{{nome}}`.
@@ -69,16 +72,18 @@ Comparativo das formas possíveis:
 
 1. **Documento** — arrastar/escolher o arquivo. O app mostra "Encontramos N campos" com a lista. Link para baixar documentos de exemplo e um quadro "Como marcar os campos".
 2. **Dados** — duas opções lado a lado:
-   - **Digitar manualmente:** o app pergunta campo por campo ("Campo 2 de 5 — telefone"), mostrando o trecho do documento onde ele aparece. `Enter` avança.
+   - **Digitar manualmente:** o app pergunta campo por campo ("Campo 2 de 5 — telefone"), mostrando o trecho do documento onde ele aparece, com formatação automática. `Enter` avança, `Shift+Enter` quebra a linha.
    - **Usar planilha:** baixa a planilha-modelo já com os campos identificados → preenche → envia de volta.
-3. **Conferir** — lista de campos (editar valor, ignorar/restaurar, adicionar texto livre) + **prévia** do documento com destaque: verde = será trocado, âmbar = sem valor. Se houver várias linhas na planilha, navega entre os documentos.
-4. **Baixar** — um arquivo, ou um `.zip` com um documento por linha. Também dá para baixar os dados em planilha.
+3. **Conferir** — lista de campos (editar valor, formatar, ignorar/restaurar, adicionar texto livre) + **prévia** do documento com destaque: verde = será trocado, âmbar = sem valor. Se houver várias linhas na planilha, navega entre os documentos (e pode adicionar ou remover).
+4. **Baixar** — no formato original (um arquivo ou `.zip`), em **PDF** (um arquivo ou `.zip` com um PDF por documento), **Imprimir** (lote num PDF único) ou **Compartilhar** no celular. Também dá para baixar os dados em planilha.
+
+O logo/nome no topo volta ao início (com confirmação se houver dados preenchidos).
 
 ---
 
 ## 5. Planilha
 
-- **Planilha-modelo gerada pelo app** com os campos encontrados no documento (`.xlsx`). Colunas formatadas como **texto** para não perder zeros à esquerda (CNPJ, CEP, telefone). Aba "Instruções" incluída.
+- **Planilha-modelo gerada pelo app** com os campos encontrados no documento (`.xlsx`): cabeçalho em negrito, primeira linha congelada, colunas inteiras em formato **Texto** (não perde zeros à esquerda de CNPJ, CEP, telefone e datas como `010126`) e aba "Instruções". Abre direto no Excel, mesmo baixada da internet.
 - **Layout padrão (horizontal):** 1ª linha = nomes dos campos; **cada linha seguinte = um documento**.
 
   | nome | telefone | cnpj |
@@ -87,15 +92,17 @@ Comparativo das formas possíveis:
   | Bruno Lima | (21) 98888-1111 | 98.765.432/0001-10 |
 
 - **Também aceito (vertical):** duas colunas `Campo | Valor` para um único documento.
-- Formatos aceitos: `.xlsx`, `.xls`, `.csv` (com `,` ou `;`).
-- Cabeçalhos são comparados ignorando maiúsculas, acentos e chaves (`{{Nome}}` = `nome`).
-- Relatório de importação: colunas reconhecidas, campos que ficaram sem coluna, colunas desconhecidas.
+- Formatos aceitos: `.xlsx`, `.xls`, `.csv` (com `,` ou `;`, lido como texto puro).
+- Cabeçalhos de **campos** são comparados ignorando maiúsculas, acentos e chaves (`{{Nome}}` = `nome`).
+- **Coluna extra** (cabeçalho que não é campo): se o texto do cabeçalho aparece no documento, vira **troca de texto**; se não aparece, é ignorada com aviso. Aqui a comparação é exata (maiúsculas e acentos), como na troca manual.
+- Datas e números são lidos pelo valor da célula: datas do Excel sem inverter dia e mês, `10126` (zero apagado) → 01/01/2026, `1.500,50` sem virar formato americano.
+- Relatório de importação: documentos lidos, campos encontrados, campos sem coluna, colunas usadas como troca de texto e colunas ignoradas.
 
 ---
 
 ## 6. Regras de comportamento
 
-| Situação | Comportamento (v0.1) | Status |
+| Situação | Comportamento | Status |
 |----------|----------------------|--------|
 | Campo sem valor | O marcador `{{campo}}` é **mantido** no documento e o app avisa antes de baixar | ❓ ver D2 |
 | Valor com várias linhas | Vira quebra de linha no Word (Shift+Enter ao digitar) | ✅ |
@@ -105,12 +112,14 @@ Comparativo das formas possíveis:
 | `.doc` (Word antigo), `.pdf` | Não suportados — orientar a salvar como `.docx` | 📝 |
 | Documento com 0 campos | Mensagem amigável + opção de usar só "texto livre" | ✅ |
 | Arquivo `.docx` protegido por senha / corrompido | Mensagem de erro clara | ✅ |
+| Valor não reconhecido pela formatação (ex.: telefone incompleto) | Fica como digitado, com aviso em laranja | ✅ |
+| Data ou número alterado pelo Excel | Recuperado ao importar (ver seção 5) | ✅ |
 
 ---
 
 ## 7. Fases
 
-### v0.1 — Primeira versão utilizável ✅ (aguardando seu teste)
+### v0.1 — Primeira versão utilizável ✅
 - [x] Estrutura do projeto + bibliotecas locais
 - [x] Roadmap
 - [x] Motor de substituição (`docx`, `txt`, `md`) — campos divididos em trechos
@@ -148,27 +157,29 @@ Comparativo das formas possíveis:
 - No PDF, cabeçalho e rodapé do Word aparecem uma vez (no início e no fim do documento), não repetidos em toda página.
 - Layouts muito elaborados do Word (caixas de texto flutuantes, colunas, formas) podem sair um pouco diferentes no PDF. O `.docx` baixado continua idêntico ao original.
 - "Compartilhar" depende do celular aceitar o tipo de arquivo; quando não aceita, o app avisa e o "Baixar" continua disponível.
-- No iPhone, o PDF é salvo pela tela de impressão (gesto de "pinça" na prévia ou "Salvar em Arquivos"), conforme a versão do iOS.
+- ~~No iPhone, o PDF só saía pela tela de impressão~~ → resolvido na v0.3 com "Baixar PDF" direto.
 
 ### v0.3 — PDFs separados e planilhas mais robustas ✅
+
+**PDF**
 - [x] **PDFs separados em .zip**, um por documento, como os arquivos do Word (botão "Baixar N PDFs (.zip)")
 - [x] **Baixar PDF direto** (sem janela de impressão), também para um documento só; mais prático no celular
   - Cada página em alta resolução (~190 dpi) com camada de texto invisível: dá para pesquisar e copiar o texto
   - Quebra de página sem cortar linhas, tabelas ou imagens; respeita as quebras de página do Word
   - jsPDF 2.5.1 e html2canvas 1.4.1 (MIT), carregados só na primeira vez que são usados
 - [x] "Imprimir" continua disponível (PDF com texto vetorial; no lote, um PDF único com todos)
+
+**Planilha**
 - [x] **Datas da planilha**
   - Zero da frente apagado pelo Excel: `010126` → `10126` volta a ser **01/01/2026** (e `1012026` → 01/01/2026)
   - Células no formato Data do Excel lidas sem inverter dia e mês (antes, 01/02 podia virar 2 de janeiro)
   - Número de série de data do Excel (ex.: `46023`) reconhecido como data
 - [x] **Números da planilha** lidos pelo valor da célula: `1.500,50` com formato do Excel não vira mais "1,500.50"
 - [x] **CSV** lido como texto puro: `010126` e `03/11/2026` chegam exatamente como digitados
-
 - [x] **Planilha abre direto no Excel, mesmo baixada da internet** (antes o Modo de Exibição Protegida dava erro e era preciso "Desbloquear" nas propriedades)
   - O .xlsx agora é montado pelo próprio app, no formato que o Excel salva: sem marcas de pasta com macro, sem formato numérico inválido e com células de texto do tipo padrão
   - De quebra: cabeçalho em negrito com fundo colorido, primeira linha congelada e colunas inteiras em formato Texto (não só as 200 primeiras linhas)
   - Vale para a planilha-modelo e para "Baixar dados em planilha"
-
 - [x] **Coluna extra na planilha = troca de texto.** Se o cabeçalho de uma coluna não é um campo, mas aparece no documento (ex.: `Empresa XYZ`), esse texto é trocado pelo valor de cada linha, como em "Adicionar troca de texto"
   - Cabeçalho que não aparece no documento é ignorado com aviso (precisa estar escrito igual, com maiúsculas e acentos)
   - A planilha exportada pelo app leva essas colunas, e reimportar funciona igual
@@ -203,13 +214,13 @@ Comparativo das formas possíveis:
 
 | # | Pergunta | Sugestão |
 |---|----------|----------|
-| **D1** | Aprova `{{campo}}` como padrão (com `[campo]` e `[[campo]]` como opções avançadas)? | Sim |
+| **D1** | Aprova `{{campo}}` como padrão (com `[campo]` e `[[campo]]` como opções avançadas)? | Sim — já em uso; falta só sua confirmação |
 | **D2** | Campo sem valor: **manter** o marcador no documento (e avisar) ou **apagar** o marcador? | Manter e avisar — evita enviar documento com buraco sem perceber |
-| **D3** | Planilha com várias linhas gerando **vários documentos num .zip** — faz sentido pro seu uso, ou é sempre 1 documento? | Manter (custa pouco e é muito útil) |
+| ~~D3~~ | ~~Vários documentos num .zip~~ | ✅ Decidido: mantido, inclusive PDFs separados no .zip (v0.3) |
 | ~~D4~~ | ~~Formatação automática~~ | ✅ Decidido: sim, feito na v0.1.1 (marcada por padrão quando o tipo é reconhecido) |
-| **D5** | Nome do app. "Preenche" é provisório. | Escolher antes de publicar |
+| **D5** | Nome do app. "Preenche" é provisório (já está no ar com esse nome). | Decidir antes de divulgar; trocar depois exige mudar o endereço do site |
 | ~~D6~~ | ~~Exportar PDF~~ | ✅ Decidido: feito na v0.2 (via "Salvar como PDF" do navegador) |
-| **D7** | O repositório do GitHub Pages será público? (O app não envia dados, mas o código fica visível.) | Tanto faz para a segurança dos documentos |
+| ~~D7~~ | ~~Repositório público?~~ | ✅ Decidido: público (necessário para o GitHub Pages gratuito), sem licença por enquanto |
 | **D8** | Precisa lembrar dados entre sessões (ex.: seus dados de empresa preenchidos)? | Só na v1.0, opt-in |
 | **D9** | Os documentos reais usam caixas de texto, colunas ou campos de formulário do Word? | Se sim, mande um exemplo para testarmos |
 
@@ -224,22 +235,24 @@ preenche/
 ├── js/
 │   ├── core.js         # detecção e substituição (docx / txt / md)
 │   ├── format.js       # formatação automática (telefone, CNPJ, data…)
-│   ├── sheet.js        # planilha-modelo e importação
-│   ├── pdf.js          # salvar em PDF (impressão)
+│   ├── sheet.js        # gera e lê planilhas (.xlsx, .xls, .csv)
+│   ├── pdf.js          # PDF: impressão e arquivos diretos
 │   └── app.js          # telas e fluxo
 ├── vendor/             # JSZip, SheetJS, docx-preview, marked, jsPDF, html2canvas (sem CDN)
 ├── icons/              # ícones do app instalável
 ├── manifest.webmanifest # dados do app instalável (PWA)
 ├── sw.js               # funcionamento offline
 ├── exemplos/           # documentos de exemplo
-├── tests/              # testes automatizados (e2e.py + fixtures)
-├── docs/prints/        # prints do README (gerados por docs/gerar_prints.py)
+├── tests/              # e2e.py (testes ponta a ponta), gerar_exemplos.py, fixtures/
+├── docs/               # gerar_prints.py + prints/ (imagens do README)
+├── .github/workflows/  # testes automáticos a cada envio (GitHub Actions)
 ├── ROADMAP.md          # este arquivo
 └── README.md           # como usar e publicar
 ```
 
-## 10. Publicar no GitHub Pages
-Passo a passo no `README.md`. Resumo: subir a pasta para um repositório → *Settings → Pages → Deploy from a branch → main / root*.
+## 10. Publicação
+- **No ar:** https://victortlacerda.github.io/preenche/ (GitHub Pages, branch `main`, raiz).
+- Cada envio para o GitHub roda os testes automaticamente (aba *Actions*) e atualiza o site em 1–2 minutos. Quem instalou o app recebe a versão nova ao abrir com internet.
 
 ---
 
@@ -255,3 +268,4 @@ Passo a passo no `README.md`. Resumo: subir a pasta para um repositório → *Se
 | 03/11/2026 | v0.3: PDFs separados em .zip e PDF direto (sem impressão); datas e números da planilha robustos (zero perdido, células de data, CSV). 85 verificações automatizadas passando. |
 | 03/11/2026 | Planilhas geradas pelo próprio app (formato Excel limpo): corrige o erro do Modo de Exibição Protegida ao abrir a planilha baixada. 88 verificações automatizadas. |
 | 03/11/2026 | Coluna extra na planilha vira troca de texto quando o cabeçalho aparece no documento. 96 verificações automatizadas. |
+| 03/11/2026 | Revisão geral do roadmap: arquitetura, fluxo, seção da planilha, decisões D3/D7 marcadas como decididas e estrutura de pastas atualizadas. |
