@@ -18,7 +18,7 @@ def check(cond, msg):
     if not cond: fails.append(msg)
 
 def docx_text(path):
-    d = Document(str(path))
+    d = Document(path if hasattr(path, 'read') else str(path))
     parts = [p.text for p in d.paragraphs]
     for t in d.tables:
         for row in t.rows:
@@ -359,6 +359,44 @@ with sync_playwright() as pw:
     check(all(allt.count(f'Item {i:02d}') == 1 for i in range(30)), 'tabela longa dividida entre páginas sem perder linhas')
     check('Anexo final de Zé' in texts[-1] and 'Anexo final' not in texts[-2], 'quebra de página do Word respeitada')
     (TMP / 'longo_p2.txt').write_text(texts[1][-200:])
+
+    # ---------------- 11) Coluna extra na planilha = troca de texto ----------------
+    print('11) Coluna extra na planilha vira troca de texto')
+    page.goto(URL)
+    page.set_input_files('input[type=file]', str(ROOT / 'exemplos/modelo-contrato.docx')); page.wait_for_selector('text=Encontramos')
+    page.click('text=Continuar'); page.click('text=Usar uma planilha')
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'Dados'
+    ws.append(['nome', 'cnpj', 'São Paulo', 'Rio de Janeiro', 'são paulo'])
+    ws.append(['Ana', '12345678000190', 'Curitiba', 'x', 'y'])
+    ws.append(['Bruno', '98765432000110', 'Recife', 'x', 'y'])
+    ws.append(['', '', 'Natal', '', ''])  # linha só com a coluna extra também conta
+    xp = TMP / 'extra.xlsx'; wb.save(xp)
+    page.set_input_files('.dropzone input[type=file]', str(xp)); page.wait_for_selector('text=documentos lidos')
+    txt = page.inner_text('#view')
+    check('3 documentos lidos · 3 de 9 campos' in txt, 'linha preenchida só na coluna extra também gera documento')
+    check('Colunas usadas como troca de texto: “São Paulo”' in txt, 'coluna "São Paulo" (existe no documento) vira troca de texto')
+    check('“Rio de Janeiro”' in txt and '“são paulo”' in txt and 'Colunas ignoradas' in txt, 'colunas que não aparecem no documento são ignoradas com aviso')
+    page.click('text=Conferir dados')
+    check(page.locator('.frow .badge.lit').count() == 1 and '“São Paulo”' in page.inner_text('.frows'), 'troca de texto aparece na conferência como "texto livre"')
+    check('Curitiba, ' in page.inner_text('#paper'), 'prévia mostra a troca')
+    page.click('text=Continuar >> nth=-1'); page.wait_for_selector('text=Tudo pronto')
+    page.select_option('#namef', index=0)
+    with page.expect_download() as dl:
+        page.click('#btn-download')
+    zp = TMP / 'extra.zip'; dl.value.save_as(str(zp)); z = zipfile.ZipFile(zp)
+    outs = sorted(z.namelist()); textos = [docx_text(io.BytesIO(z.read(n))) for n in outs]
+    check(any('Curitiba, {{data}}.' in t for t in textos) and any('Recife, {{data}}.' in t for t in textos) and any('Natal, {{data}}.' in t for t in textos), 'cada documento com seu valor no lugar de "São Paulo"')
+    # ida e volta: a planilha exportada traz a coluna "São Paulo" e reimporta igual
+    with page.expect_download() as dl:
+        page.click('text=Baixar dados em planilha')
+    rt = TMP / 'extra_volta.xlsx'; dl.value.save_as(str(rt))
+    hdr = [c.value for c in openpyxl.load_workbook(rt)['Dados'][1]]
+    check('São Paulo' in hdr, 'planilha exportada inclui a coluna de troca de texto')
+    page.goto(URL)
+    page.set_input_files('input[type=file]', str(ROOT / 'exemplos/modelo-contrato.docx')); page.wait_for_selector('text=Encontramos')
+    page.click('text=Continuar'); page.click('text=Usar uma planilha')
+    page.set_input_files('.dropzone input[type=file]', str(rt)); page.wait_for_selector('text=documentos lidos')
+    check('troca de texto: “São Paulo”' in page.inner_text('#view') and 'Colunas ignoradas' not in page.inner_text('#view'), 'reimportada em outra sessão, a coluna volta a ser troca de texto')
 
     check(not errors, 'sem erros no console: ' + '; '.join(errors)[:200])
     br.close()

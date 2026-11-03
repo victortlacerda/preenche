@@ -167,7 +167,8 @@
       '3. Deixe a célula vazia se não quiser trocar aquele campo.',
       '4. As colunas já estão no formato Texto, para não perder zeros à esquerda (CNPJ, CEP, telefone, datas como 010126).',
       '5. Pode digitar só os números: o app formata telefone, CNPJ, CPF, CEP, datas e valores.',
-      '6. Salve o arquivo (.xlsx ou .csv) e envie de volta no app.'
+      '6. Quer trocar um texto que não tem marcador (ex.: Empresa XYZ)? Crie uma coluna com esse texto no cabeçalho, escrito exatamente como no documento, e coloque o novo valor nas linhas.',
+      '7. Salve o arquivo (.xlsx ou .csv) e envie de volta no app.'
     ];
     return {
       name: 'Instruções', cols: [110],
@@ -276,7 +277,7 @@
     var head = grid[0].map(cleanHeader);
     var vertical = head.length >= 2 && (head[0] === 'campo' || head[0] === 'field') && (head[1] === 'valor' || head[1] === 'value');
 
-    var records = [], matched = new Set(), extra = [];
+    var records = [], matched = new Set(), extra = [], extraCols = [];
 
     if (vertical) {
       var rec = {};
@@ -284,8 +285,9 @@
         var k = cleanHeader(grid[i][0]);
         if (!k) continue;
         var f = byKey.get(k);
-        if (f) { rec[f.id] = String(grid[i][1] == null ? '' : grid[i][1]).trim(); matched.add(f.id); }
-        else extra.push(String(grid[i][0]).trim());
+        var val = String(grid[i][1] == null ? '' : grid[i][1]).trim();
+        if (f) { rec[f.id] = val; matched.add(f.id); }
+        else { extra.push(String(grid[i][0]).trim()); extraCols.push({ header: String(grid[i][0]).trim(), values: [val] }); }
       }
       records.push(rec);
     } else {
@@ -293,7 +295,10 @@
       grid[0].forEach(function (h, idx) {
         var f2 = byKey.get(cleanHeader(h));
         if (f2 && !colMap.some(function (x) { return x && x.f === f2; })) { colMap[idx] = { f: f2 }; matched.add(f2.id); }
-        else if (String(h).trim()) extra.push(String(h).trim());
+        else if (String(h).trim()) {
+          extra.push(String(h).trim());
+          if (!extraCols.some(function (e) { return e.header === String(h).trim(); })) extraCols.push({ header: String(h).trim(), idx: idx, values: [] });
+        }
       });
       for (var r = 1; r < grid.length; r++) {
         var rec2 = {}, any = false;
@@ -303,13 +308,15 @@
           rec2[c.f.id] = v;
           if (v) any = true;
         });
-        if (any) records.push(rec2);
+        var ev = extraCols.map(function (e) { var v = String(grid[r][e.idx] == null ? '' : grid[r][e.idx]).trim(); if (v) any = true; return v; });
+        if (any) { records.push(rec2); extraCols.forEach(function (e, k) { e.values.push(ev[k]); }); }
       }
     }
 
     var missing = fields.filter(function (f3) { return !matched.has(f3.id); }).map(function (f3) { return f3.name; });
     var matchedNames = fields.filter(function (f4) { return matched.has(f4.id); }).map(function (f4) { return f4.name; });
-    return { records: records, layout: vertical ? 'vertical' : 'horizontal', matched: matchedNames, missing: missing, extra: extra, rows: records.length };
+    // extraCols: colunas que não são campos do documento — o app decide se viram troca de texto
+    return { records: records, layout: vertical ? 'vertical' : 'horizontal', matched: matchedNames, missing: missing, extra: extra, extraCols: extraCols, rows: records.length };
   }
 
   global.Sheet = { buildTemplate: buildTemplate, exportData: exportData, parseFile: parseFile };

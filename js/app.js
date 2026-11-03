@@ -497,7 +497,7 @@
 
     var body = h('div', { class: 'body' },
       h('h3', { text: 'Envie a planilha preenchida' }),
-      h('p', { class: 'muted small', text: 'Aceita .xlsx, .xls e .csv.' }),
+      h('p', { class: 'muted small', text: 'Aceita .xlsx, .xls e .csv. Dica: para trocar um texto que não tem marcador, crie uma coluna com esse texto no cabeçalho.' }),
       h('div', { style: 'margin-top:14px' }, dropzone({
         compact: true, accept: '.xlsx,.xls,.csv', title: info ? 'Enviar outra planilha' : 'Arraste a planilha aqui ou clique para escolher',
         sub: '', formats: ['.xlsx', '.xls', '.csv'], onFile: handleSheet
@@ -505,11 +505,15 @@
 
     if (info) {
       body.appendChild(h('div', { class: 'notice ok', style: 'margin-top:14px' }, icon('check'),
-        h('div', null, h('strong', { text: plural(info.rows, 'documento', 'documentos') + ' lido' + (info.rows === 1 ? '' : 's') + ' · ' + info.matched.length + ' de ' + fields.length + ' campos encontrados' }))));
+        h('div', null, h('strong', { text: plural(info.rows, 'documento', 'documentos') + ' lido' + (info.rows === 1 ? '' : 's') + ' · ' + (info.matched.length + (info.literals ? info.literals.length : 0)) + ' de ' + fields.length + ' campos encontrados' }))));
       if (info.missing.length) body.appendChild(h('div', { class: 'notice warn' }, icon('alert'),
         h('div', null, 'Sem coluna na planilha: ', h('strong', { text: info.missing.join(', ') }), '. Você poderá digitar esses valores na conferência.')));
-      if (info.extra.length) body.appendChild(h('div', { class: 'notice info' }, icon('info'),
-        h('div', null, 'Colunas ignoradas (não existem no documento): ', h('strong', { text: info.extra.join(', ') }), '.')));
+      if (info.literals && info.literals.length) body.appendChild(h('div', { class: 'notice info' }, icon('info'),
+        h('div', null, 'Colunas usadas como troca de texto: ', h('strong', { text: info.literals.map(function (t) { return '“' + t + '”'; }).join(', ') }),
+          '. Esse texto do documento será trocado pelo valor de cada linha.')));
+      if (info.ignored && info.ignored.length) body.appendChild(h('div', { class: 'notice warn' }, icon('alert'),
+        h('div', null, 'Colunas ignoradas, porque o cabeçalho não aparece no documento: ', h('strong', { text: info.ignored.map(function (t) { return '“' + t + '”'; }).join(', ') }),
+          '. Para trocar um texto, o cabeçalho precisa estar escrito exatamente como no documento (com maiúsculas e acentos).')));
     }
     root.appendChild(h('div', { class: 'card step-card' }, h('div', { class: 'n', text: '2' }), body));
 
@@ -525,7 +529,21 @@
     try {
       var info = await Sheet.parseFile(file, activeFields());
       if (!info.records.length) { toast('Nenhuma linha preenchida foi encontrada na planilha.', 'err'); return; }
-      if (!info.matched.length) { toast('Nenhuma coluna da planilha corresponde aos campos do documento.', 'err'); return; }
+      // Colunas que não são campos: se o cabeçalho aparece no documento, vira troca de texto
+      var d = delim(), newFields = [];
+      info.literals = []; info.ignored = [];
+      info.extraCols.forEach(function (col) {
+        var hdr = col.header;
+        var count = hdr.indexOf(d.open) === -1 && !/[\r\n]/.test(hdr) ? Core.countLiteral(state.doc, hdr) : 0;
+        if (!count) { info.ignored.push(hdr); return; }
+        var f = state.fields.filter(function (x) { return x.type === 'literal' && x.find === hdr; })[0];
+        if (!f) { f = makeLiteral(hdr, count); newFields.push(f); }
+        else f.enabled = true;
+        col.values.forEach(function (v, i) { if (info.records[i]) info.records[i][f.id] = v; });
+        info.literals.push(hdr);
+      });
+      if (!info.matched.length && !info.literals.length) { toast('Nenhuma coluna da planilha corresponde aos campos ou a textos do documento.', 'err'); return; }
+      state.fields = state.fields.concat(newFields);
       state.records = info.records; state.cur = 0; state.sheetInfo = info;
       toast('Planilha importada.');
     } catch (e) {
@@ -625,6 +643,10 @@
     renderReviewBody();
   }
 
+  function makeLiteral(find, count) {
+    return { id: 'f' + (nextId++), type: 'literal', name: find, key: Core.normalizeKey(find), find: find, count: count, context: Core.firstLiteralContext(state.doc, find), enabled: true, fmt: '', fmtOn: false };
+  }
+
   function addLiteral(find, value) {
     find = find.trim();
     if (!find) { toast('Digite o texto que deve ser localizado.', 'err'); return false; }
@@ -634,7 +656,7 @@
     if (state.fields.some(function (f) { return f.type === 'literal' && f.find === find; })) { toast('Esse texto já foi adicionado.', 'err'); return false; }
     var count = Core.countLiteral(state.doc, find);
     if (!count) { toast('Esse texto não aparece no documento (diferencia maiúsculas e minúsculas).', 'err'); return false; }
-    var f = { id: 'f' + (nextId++), type: 'literal', name: find, key: Core.normalizeKey(find), find: find, count: count, context: Core.firstLiteralContext(state.doc, find), enabled: true, fmt: '', fmtOn: false };
+    var f = makeLiteral(find, count);
     state.fields.push(f);
     state.records[state.cur][f.id] = value;
     return true;
@@ -682,7 +704,7 @@
     [findIn, valIn].forEach(function (el) { el.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); add(); } }); });
     card.appendChild(h('div', { class: 'add-box' },
       h('strong', { text: 'Adicionar troca de texto' }),
-      h('p', { class: 'small muted', text: 'Para trechos que não têm marcador, como o nome de uma empresa do modelo antigo. O texto precisa estar escrito exatamente igual no documento.' }),
+      h('p', { class: 'small muted', text: 'Para trechos que não têm marcador, como o nome de uma empresa do modelo antigo. O texto precisa estar escrito exatamente igual no documento. Também dá para fazer pela planilha: crie uma coluna com esse texto no cabeçalho.' }),
       h('div', { class: 'row' }, findIn, valIn),
       h('button', { class: 'btn sm', type: 'button', onclick: add }, icon('plus', 16), 'Adicionar')));
     left.appendChild(card);
