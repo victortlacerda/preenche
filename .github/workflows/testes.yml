@@ -1,0 +1,22 @@
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependências
+        run: |
+          pip install playwright python-docx openpyxl pypdf lxml
+          python -m playwright install --with-deps chromium
+      - name: Rodar testes ponta a ponta
+        run: python tests/e2e.py
