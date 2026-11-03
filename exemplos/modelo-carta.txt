@@ -1,0 +1,13 @@
+São Paulo, {{data}}
+
+À
+{{razão social}}
+CNPJ {{cnpj}}
+A/C {{nome}}
+
+Prezado(a) {{nome}},
+
+Entraremos em contato pelo telefone {{telefone}} para confirmar os detalhes.
+
+Atenciosamente,
+Equipe Comercial
