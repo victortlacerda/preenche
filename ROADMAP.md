@@ -207,6 +207,7 @@ preenche/
 ├── sw.js               # funcionamento offline
 ├── exemplos/           # documentos de exemplo
 ├── tests/              # testes automatizados (e2e.py + fixtures)
+├── docs/prints/        # prints do README (gerados por docs/gerar_prints.py)
 ├── ROADMAP.md          # este arquivo
 └── README.md           # como usar e publicar
 ```
@@ -224,3 +225,4 @@ Passo a passo no `README.md`. Resumo: subir a pasta para um repositório → *Se
 | 03/11/2026 | v0.1 implementada: 4 passos, digitação campo a campo, planilha (várias linhas → .zip), conferência com prévia, texto livre. 34 verificações automatizadas passando (campos partidos em até 5 trechos, caixas de texto, cabeçalho/rodapé, CSV com `;`, acentos). |
 | 03/11/2026 | v0.1.1: logo volta ao início com confirmação; formatação automática por campo (8 tipos). 48 verificações automatizadas passando. |
 | 03/11/2026 | v0.2: salvar em PDF (1 documento ou lote num PDF só); PWA instalável e offline; compartilhar no celular. 65 verificações automatizadas passando (incl. PDF gerado e lido de volta, e uso offline via servidor http). |
+| 03/11/2026 | Projeto publicado no GitHub com CI de testes. README em formato de apresentação, com prints do app (desktop, celular, antes e depois) gerados por `docs/gerar_prints.py`. |
