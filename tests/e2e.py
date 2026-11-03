@@ -104,6 +104,10 @@ with sync_playwright() as pw:
     check(len(hdr) == 7 and 'cnpj' in hdr, 'planilha-modelo com um cabeçalho por campo')
     check(ws['B2'].number_format == '@', 'células de dados no formato Texto')
     check('Instruções' in wb.sheetnames, 'aba de instruções')
+    check(ws['A1'].font.b and ws.freeze_panes == 'A2', 'cabeçalho em negrito e primeira linha congelada')
+    zt = zipfile.ZipFile(tpl); allx = b''.join(zt.read(n) for n in zt.namelist())
+    check(not any(k in allx for k in [b'codeName', b'macroEnabled', b't="str"']) and not any(n.endswith('/') for n in zt.namelist()),
+          'planilha sem marcas de macro nem estruturas que o Modo Protegido do Excel recusa')
     rows = [
         {'nome': 'Ana Souza', 'razão social': 'Alfa Ltda', 'cnpj': '00.123.456/0001-00', 'telefone': '(11) 99999-0000', 'email': 'ana@alfa.com', 'valor': 'R$ 100', 'data': '01/12/2026'},
         {'nome': 'Bruno Lima', 'razão social': 'Beta SA', 'cnpj': '98.765.432/0001-10', 'telefone': '(21) 98888-1111', 'email': 'bruno@beta.com', 'valor': 'R$ 200', 'data': '02/12/2026'},
@@ -298,6 +302,14 @@ with sync_playwright() as pw:
     docs = lote_md(csvp)
     check('válida até 01/01/2026' in get('Dani') and 'válida até 03/11/2026' in get('Edu'), 'CSV: 010126 mantido e 03/11/2026 não vira data americana')
     check('R$ 2.500,00' in get('Edu'), 'CSV: valor 2.500,00')
+
+    # ida e volta: baixar dados em planilha e importar de novo, sem mexer no arquivo
+    to_back = page.locator('text=Baixar dados em planilha')
+    with page.expect_download() as dl:
+        to_back.click()
+    rt = TMP / 'ida_volta.xlsx'; dl.value.save_as(str(rt))
+    docs2 = lote_md(rt)
+    check(len(docs2) == 2 and 'R$ 2.500,00' in [v for k, v in docs2.items() if 'Edu' in k][0], 'planilha exportada pelo app volta a ser importada igualzinha')
 
     # ---------------- 10) PDFs separados ----------------
     print('10) PDFs separados (arquivos prontos, sem impressão)')

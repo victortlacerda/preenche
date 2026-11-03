@@ -159,7 +159,7 @@
       act.forEach(function (f) { var v = r[f.id] ? String(r[f.id]).trim() : ''; o[f.id] = v ? fmtValue(f, v) : ''; });
       return o;
     });
-    download(Sheet.exportData(act, rows), 'dados-preenchidos.xlsx');
+    Sheet.exportData(act, rows).then(function (b) { download(b, 'dados-preenchidos.xlsx'); });
     toast('Dados baixados em planilha.');
   }
 
@@ -490,7 +490,7 @@
         h('div', { style: 'margin-top:14px' },
           h('button', {
             class: 'btn', type: 'button', onclick: function () {
-              download(Sheet.buildTemplate(fields), 'planilha-modelo.xlsx');
+              Sheet.buildTemplate(fields).then(function (b) { download(b, 'planilha-modelo.xlsx'); });
               toast('Planilha modelo baixada.');
             }
           }, icon('download', 18), 'Baixar planilha modelo (.xlsx)')))));
