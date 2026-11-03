@@ -339,23 +339,28 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 }
 @media (display-mode: standalone) { .install { display: none !important; } }
 
-/* Impressão / PDF: só a área do documento aparece */
+/* Documento renderizado para PDF (impressão e geração direta) */
 #print-area { display: none; }
+#pdf-stage { position: absolute; left: -100000px; top: 0; background: #fff; color: #000; }
+#pdf-stage .pdoc { background: #fff; }
+#pdf-stage, #pdf-stage * { hyphens: manual !important; -webkit-hyphens: manual !important; }
+:is(#print-area, #pdf-stage) section.docx { padding: 0 !important; margin: 0 !important; width: auto !important; min-height: 0 !important; height: auto !important; box-shadow: none !important; background: #fff !important; }
+/* Cabeçalho/rodapé do Word: no fluxo do texto (início e fim do documento) */
+:is(#print-area, #pdf-stage) section.docx > header { margin: 0 0 14pt !important; min-height: 0 !important; color: #444; }
+:is(#print-area, #pdf-stage) section.docx > footer { margin: 18pt 0 0 !important; min-height: 0 !important; color: #444; }
+.pdoc-md, .pdoc-txt { font-family: Georgia, "Times New Roman", serif; font-size: 12pt; line-height: 1.5; color: #000; }
+.pdoc-txt { white-space: pre-wrap; word-break: break-word; }
+.pdoc-md table { border-collapse: collapse; margin: 8pt 0; }
+.pdoc-md th, .pdoc-md td { border: 1px solid #999; padding: 4pt 8pt; text-align: left; }
+.pdoc-md h1 { font-size: 20pt; } .pdoc-md h2 { font-size: 15pt; }
+.pdoc-md a { color: #000; }
+
+/* Impressão: só a área do documento aparece */
 @media print {
   body { background: #fff !important; display: block; min-height: 0; padding: 0; }
   body > *:not(#print-area) { display: none !important; }
   #print-area { display: block; }
   .pdoc + .pdoc { break-before: page; }
-  /* As margens da página vêm do @page (copiado do .docx), então a "folha" do docx-preview não precisa das próprias */
-  #print-area section.docx { padding: 0 !important; margin: 0 !important; width: auto !important; min-height: 0 !important; height: auto !important; box-shadow: none !important; background: #fff !important; }
+  /* As margens da página vêm do @page (copiado do .docx) */
   #print-area section.docx:not(:last-of-type) { break-after: page; }
-  /* Cabeçalho/rodapé do Word: no fluxo do texto (início e fim do documento) */
-  #print-area section.docx > header { margin: 0 0 14pt !important; min-height: 0 !important; color: #444; }
-  #print-area section.docx > footer { margin: 18pt 0 0 !important; min-height: 0 !important; color: #444; }
-  .pdoc-md, .pdoc-txt { font-family: Georgia, "Times New Roman", serif; font-size: 12pt; line-height: 1.5; color: #000; }
-  .pdoc-txt { white-space: pre-wrap; word-break: break-word; }
-  .pdoc-md table { border-collapse: collapse; margin: 8pt 0; }
-  .pdoc-md th, .pdoc-md td { border: 1px solid #999; padding: 4pt 8pt; text-align: left; }
-  .pdoc-md h1 { font-size: 20pt; } .pdoc-md h2 { font-size: 15pt; }
-  .pdoc-md a { color: #000; }
 }

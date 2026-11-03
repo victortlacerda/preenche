@@ -4,12 +4,12 @@
  * Ao publicar uma versão nova, basta subir os arquivos; troque VERSION só
  * se quiser forçar a limpeza do cache antigo.
  */
-const VERSION = 'preenche-v0.2.0';
+const VERSION = 'preenche-v0.3.0';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest',
   'css/style.css',
   'js/core.js', 'js/format.js', 'js/sheet.js', 'js/pdf.js', 'js/app.js',
-  'vendor/jszip.min.js', 'vendor/xlsx.full.min.js', 'vendor/docx-preview.min.js', 'vendor/marked.min.js',
+  'vendor/jszip.min.js', 'vendor/xlsx.full.min.js', 'vendor/docx-preview.min.js', 'vendor/marked.min.js', 'vendor/jspdf.umd.min.js', 'vendor/html2canvas.min.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png',
   'exemplos/modelo-contrato.docx', 'exemplos/modelo-proposta.md', 'exemplos/modelo-carta.txt'
 ];

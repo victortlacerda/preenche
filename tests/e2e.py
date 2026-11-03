@@ -198,6 +198,7 @@ with sync_playwright() as pw:
         ('cpf', '12345678909', '123.456.789-09'), ('cpfcnpj', '12345678909', '123.456.789-09'), ('cpfcnpj', '12345678000190', '12.345.678/0001-90'),
         ('cep', '01310100', '01310-100'), ('cep', '1310100', '01310-100'),
         ('data', '3/11/2026', '03/11/2026'), ('data', '2026-11-03', '03/11/2026'), ('data', '03112026', '03/11/2026'), ('data', '31/02/2026', None),
+        ('data', '10126', '01/01/2026'), ('data', '1012026', '01/01/2026'), ('data', '46023', '01/01/2026'), ('data', '310126', '31/01/2026'),
         ('data_extenso', '03/11/2026', '3 de novembro de 2026'), ('data_extenso', '01/01/2027', '1º de janeiro de 2027'),
         ('moeda', '1500', 'R$ 1.500,00'), ('moeda', '1.500,5', 'R$ 1.500,50'), ('moeda', '1500.75', 'R$ 1.500,75'), ('moeda', 'R$ 1.500,00', 'R$ 1.500,00'), ('moeda', 'abc', None),
     ]
@@ -240,7 +241,7 @@ with sync_playwright() as pw:
         page.evaluate('''(rows) => { const s = __app.state; s.records = rows.map(r => { const o = {}; s.fields.forEach(f => { if (r[f.key] !== undefined) o[f.id] = r[f.key]; }); return o; }); }''', sheet_rows)
         page.click('text=Continuar >> nth=-1'); page.wait_for_selector('text=Tudo pronto')
         page.evaluate('() => { window.__printed = 0; window.print = () => { window.__printed++; }; }')
-        page.click('#btn-pdf')
+        page.click('#btn-print')
         page.wait_for_function('window.__printed > 0', timeout=20000)
         page.emulate_media(media='print')
         pdf = page.pdf(prefer_css_page_size=True, print_background=True)
@@ -262,6 +263,90 @@ with sync_playwright() as pw:
     check(len(starts) == 3, f'lote: 3 documentos no mesmo PDF, cada um em página nova (páginas {starts} de {len(r.pages)})')
     check('Carla Ltda' in txt and '<' not in txt.split('Proposta')[1][:5], 'PDF do .md renderizado (títulos, tabela)')
     check(page.locator('#print-area').count() == 1, 'área de impressão fica fora da tela')
+
+    # ---------------- 9) Datas e números vindos do Excel ----------------
+    print('9) Datas e números vindos do Excel e do CSV')
+    import datetime
+    def lote_md(sheet_path):
+        page.goto(URL)
+        page.set_input_files('input[type=file]', str(ROOT / 'exemplos/modelo-proposta.md')); page.wait_for_selector('text=Encontramos')
+        page.click('text=Continuar'); page.click('text=Usar uma planilha')
+        page.set_input_files('.dropzone input[type=file]', str(sheet_path)); page.wait_for_selector('text=lido')
+        page.click('text=Conferir dados'); page.click('text=Continuar >> nth=-1'); page.wait_for_selector('text=Tudo pronto')
+        page.select_option('#namef', label='nome')
+        with page.expect_download() as dl:
+            page.click('#btn-download')
+        zp = TMP / 'datas.zip'; dl.value.save_as(str(zp)); z = zipfile.ZipFile(zp)
+        return {n: z.read(n).decode('utf-8') for n in z.namelist()}
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'Dados'
+    ws.append(['nome', 'data', 'valor', 'cnpj', 'telefone'])
+    ws.append(['Ana', 10126, 1500.5, 1234567000189, 11912345678])          # Excel apagou o zero: 010126 → 10126
+    ws.append(['Bia', datetime.datetime(2026, 2, 1), 1500, '12345678000190', '(11) 3234-5678'])
+    ws.append(['Caio', datetime.datetime(2026, 11, 3), '1.500,00', 12345678000190, 1132345678])
+    ws['B3'].number_format = 'dd/mm/yyyy'; ws['B4'].number_format = 'm/d/yy'; ws['C2'].number_format = '#,##0.00'
+    xp = TMP / 'datas.xlsx'; wb.save(xp)
+    docs = lote_md(xp)
+    get = lambda nome: [v for k, v in docs.items() if nome in k][0]
+    check('válida até 01/01/2026' in get('Ana'), 'data 10126 (zero apagado pelo Excel) vira 01/01/2026')
+    check('válida até 01/02/2026' in get('Bia'), 'célula de data dd/mm do Excel: 1º de fevereiro, sem inverter dia e mês')
+    check('válida até 03/11/2026' in get('Caio'), 'célula de data em formato americano do Excel lida certo')
+    check('R$ 1.500,50' in get('Ana'), 'número com formato do Excel (1,500.50) vira R$ 1.500,50')
+    check('CNPJ 01.234.567/0001-89' in get('Ana'), 'CNPJ numérico sem o zero da frente recuperado')
+    check('(11) 91234-5678' in get('Ana') and '(11) 3234-5678' in get('Caio'), 'telefone numérico formatado')
+    csvp = TMP / 'datas.csv'
+    csvp.write_text('nome;data;valor\nDani;010126;1500\nEdu;03/11/2026;2.500,00\n', encoding='utf-8')
+    docs = lote_md(csvp)
+    check('válida até 01/01/2026' in get('Dani') and 'válida até 03/11/2026' in get('Edu'), 'CSV: 010126 mantido e 03/11/2026 não vira data americana')
+    check('R$ 2.500,00' in get('Edu'), 'CSV: valor 2.500,00')
+
+    # ---------------- 10) PDFs separados ----------------
+    print('10) PDFs separados (arquivos prontos, sem impressão)')
+    def to_step4(docpath, rows):
+        page.goto(URL)
+        page.set_input_files('input[type=file]', str(docpath)); page.wait_for_selector('text=Encontramos')
+        page.click('text=Continuar'); page.click('text=Pular para a conferência'); page.wait_for_selector('text=Confira antes de baixar')
+        page.evaluate('''(rows) => { const s = __app.state; s.records = rows.map(r => { const o = {}; s.fields.forEach(f => { if (r[f.key] !== undefined) o[f.id] = r[f.key]; }); return o; }); }''', rows)
+        page.click('text=Continuar >> nth=-1'); page.wait_for_selector('text=Tudo pronto')
+    rows = [{'nome': n, 'razao social': n + ' Ltda', 'cnpj': '1234567800019' + str(i), 'telefone': '1191234567' + str(i), 'email': 'x@y.z', 'valor': '10', 'data': '01/01/2027'} for i, n in enumerate(['Ana', 'Bruno', 'Carla'])]
+    to_step4(ROOT / 'exemplos/modelo-proposta.md', rows)
+    check('3 PDFs (.zip)' in page.inner_text('#btn-pdfs'), 'botão "Baixar 3 PDFs (.zip)" no lote')
+    with page.expect_download(timeout=90000) as dl:
+        page.click('#btn-pdfs')
+    zp = TMP / 'pdfs.zip'; dl.value.save_as(str(zp)); z = zipfile.ZipFile(zp)
+    check(sorted(z.namelist()) == ['modelo-proposta_Ana.pdf', 'modelo-proposta_Bruno.pdf', 'modelo-proposta_Carla.pdf'], f'zip com 1 PDF por documento, nomeados pelo campo {z.namelist()}')
+    ok = all(n.split('_')[1][:-4] + ' Ltda' in PdfReader(io.BytesIO(z.read(n))).pages[0].extract_text() for n in z.namelist())
+    check(ok, 'cada PDF com os dados do seu documento e texto pesquisável')
+    r = PdfReader(io.BytesIO(z.read(z.namelist()[0])))
+    check(abs(float(r.pages[0].mediabox.width) - 595.28) < 1, 'md/txt em folha A4')
+    # .docx único
+    to_step4(ROOT / 'exemplos/modelo-contrato.docx', [{'razao social': 'Acme Tecnologia Ltda', 'cnpj': '12345678000190', 'nome': 'Maria da Silva', 'valor': '1500', 'data': '10126', 'telefone': '11912345678', 'email': 'm@a.com', 'endereco': 'Rua A, 10'}])
+    check(page.inner_text('#btn-pdfs').strip() == 'Baixar PDF', 'documento único: botão "Baixar PDF"')
+    with page.expect_download(timeout=60000) as dl:
+        page.click('#btn-pdfs')
+    pp = TMP / 'unico.pdf'; dl.value.save_as(str(pp)); r = PdfReader(str(pp)); t = r.pages[0].extract_text()
+    check(dl.value.suggested_filename == 'modelo-contrato_preenchido.pdf', 'nome do PDF único')
+    check('Acme Tecnologia Ltda' in t and '12.345.678/0001-90' in t and '01/01/2026' in t and 'Contrato — Acme' in t, 'PDF direto do .docx com valores, data corrigida e cabeçalho')
+    check(abs(float(r.pages[0].mediabox.width) - 612) < 1, 'PDF direto usa o papel do .docx (Carta)')
+    # documento longo: quebra de páginas sem perder nem repetir linhas
+    from docx import Document as _D
+    longd = _D(); longd.add_paragraph('Relatório de {{nome}}')
+    for i in range(1, 121):
+        longd.add_paragraph(f'Linha {i:03d} do relatório para {{{{nome}}}} com texto suficiente para ocupar a largura da página toda.')
+    t2 = longd.add_table(rows=30, cols=2); t2.style = 'Table Grid'
+    for i in range(30): t2.cell(i, 0).text = f'Item {i:02d}'; t2.cell(i, 1).text = '{{nome}}'
+    longd.add_page_break(); longd.add_paragraph('Anexo final de {{nome}}')
+    lp = TMP / 'longo.docx'; longd.save(lp)
+    to_step4(lp, [{'nome': 'Zé'}])
+    with page.expect_download(timeout=90000) as dl:
+        page.click('#btn-pdfs')
+    pl = TMP / 'longo.pdf'; dl.value.save_as(str(pl)); r = PdfReader(str(pl))
+    texts = [pg.extract_text() for pg in r.pages]; allt = '\n'.join(texts)
+    miss = [i for i in range(1, 121) if allt.count(f'Linha {i:03d}') != 1]
+    check(len(r.pages) >= 4, f'documento longo dividido em {len(r.pages)} páginas')
+    check(not miss, 'todas as 120 linhas aparecem exatamente uma vez (nenhuma cortada ou repetida)' + (f' — problemas: {miss[:10]}' if miss else ''))
+    check(all(allt.count(f'Item {i:02d}') == 1 for i in range(30)), 'tabela longa dividida entre páginas sem perder linhas')
+    check('Anexo final de Zé' in texts[-1] and 'Anexo final' not in texts[-2], 'quebra de página do Word respeitada')
+    (TMP / 'longo_p2.txt').write_text(texts[1][-200:])
 
     check(not errors, 'sem erros no console: ' + '; '.join(errors)[:200])
     br.close()

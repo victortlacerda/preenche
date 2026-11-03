@@ -775,6 +775,19 @@
     });
   }
 
+  function doPdfFiles(btn) {
+    return busy(btn, 'Gerando PDF…', async function () {
+      var files = await getOutputs();
+      var pdfs = await Pdf.toFiles(files, function (i, n) { btn.textContent = n > 1 ? 'Gerando PDF ' + i + ' de ' + n + '…' : 'Gerando PDF…'; });
+      if (pdfs.length === 1) { download(pdfs[0].blob, pdfs[0].name); toast('PDF baixado!'); return; }
+      btn.textContent = 'Compactando…';
+      var zip = new JSZip();
+      pdfs.forEach(function (f) { zip.file(f.name, f.blob); });
+      download(await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }), baseName() + '_pdfs.zip');
+      toast(pdfs.length + ' PDFs baixados em um .zip!');
+    });
+  }
+
   function doPdf(btn) {
     return busy(btn, 'Preparando PDF…', async function () {
       var files = await getOutputs();
@@ -835,16 +848,18 @@
 
     var btn = h('button', { class: 'btn primary big', type: 'button', id: 'btn-download' }, icon('download', 22), n === 1 ? 'Baixar documento (.' + state.doc.ext + ')' : 'Baixar ' + n + ' documentos (.zip)');
     btn.addEventListener('click', function () { doDownload(btn); });
-    var pdfBtn = h('button', { class: 'btn big', type: 'button', id: 'btn-pdf' }, icon('file', 20), n === 1 ? 'Salvar em PDF' : 'Salvar todos em 1 PDF');
-    pdfBtn.addEventListener('click', function () { doPdf(pdfBtn); });
+    var pdfBtn = h('button', { class: 'btn big', type: 'button', id: 'btn-pdfs' }, icon('file', 20), n === 1 ? 'Baixar PDF' : 'Baixar ' + n + ' PDFs (.zip)');
+    pdfBtn.addEventListener('click', function () { doPdfFiles(pdfBtn); });
+    var printBtn = h('button', { class: 'btn sm', type: 'button', id: 'btn-print', title: 'Abre a impressão do navegador. Escolha “Salvar como PDF” para um PDF com texto vetorial.' }, icon('file', 16), n === 1 ? 'Imprimir' : 'Imprimir todos (1 PDF)');
+    printBtn.addEventListener('click', function () { doPdf(printBtn); });
     var shareBtn = canShareFiles ? h('button', { class: 'btn big', type: 'button', id: 'btn-share', onclick: doShare }, icon('share', 20), 'Compartilhar') : null;
     root.appendChild(card);
     prepareOutputs();
     root.appendChild(h('div', { class: 'done-actions' },
       h('div', { class: 'main-actions' }, btn, pdfBtn, shareBtn),
       h('p', { class: 'small muted', id: 'gen-status', 'aria-live': 'polite' }),
-      h('p', { class: 'small muted pdf-hint', text: 'PDF: na janela que abrir, escolha “Salvar como PDF” como destino' + (n > 1 ? '. Cada documento começa numa página nova.' : '.') }),
-      h('div', { class: 'done-links' },
+      h('p', { class: 'small muted pdf-hint', text: n > 1 ? 'Os PDFs saem separados, um por documento, como os arquivos do Word. Para um PDF único com todos, use “Imprimir todos”.' : 'O PDF mantém a formatação do documento e o texto pode ser pesquisado e copiado.' }),
+      h('div', { class: 'done-links' }, printBtn,
         h('button', {
           class: 'btn sm', type: 'button', onclick: function () {
             exportCurrentData();
