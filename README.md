@@ -23,9 +23,9 @@ A formatação do Word é mantida: fontes, negrito, tabelas, cabeçalho e rodap�
 - **Reconhece os campos sozinho.** Basta escrever `{{nome do campo}}` no documento. Funciona mesmo quando o Word divide o campo em pedaços, e também em tabelas, cabeçalho, rodapé e caixas de texto.
 - **Pergunta campo por campo.** Mostra o trecho do documento onde cada campo aparece. Enter avança.
 - **Formata enquanto você digita.** `11912345678` vira `(11) 91234-5678` e `12345678000190` vira `12.345.678/0001-90`.
-- **Planilha para vários documentos.** O app gera a planilha-modelo com os campos do seu documento; cada linha vira um documento, entregue num `.zip` ou num PDF só.
+- **Planilha para vários documentos.** O app gera a planilha-modelo com os campos do seu documento; cada linha vira um documento. Entende datas e números mesmo quando o Excel os altera (`010126` que virou `10126` volta a ser 01/01/2026).
 - **Confere antes de baixar.** Prévia com o que será trocado (verde) e o que ficou sem valor (âmbar). Dá para ignorar campos ou trocar textos que não têm marcador.
-- **PDF com texto de verdade.** Selecionável e nítido, com o tamanho de papel e as margens do documento original.
+- **PDF do jeito que você precisar.** Um por documento (num `.zip`, como os do Word) ou todos num PDF só. O texto pode ser pesquisado e copiado, e o papel e as margens são os do documento original.
 - **Feito para o celular.** Instale como app, use sem internet e compartilhe o resultado direto por WhatsApp ou e-mail.
 - **Privado.** Não tem servidor, cadastro nem envio de dados.
 
@@ -39,7 +39,7 @@ A formatação do Word é mantida: fontes, negrito, tabelas, cabeçalho e rodap�
 | 3. Confira | 4. Baixe |
 |---|---|
 | ![Conferência com prévia](docs/prints/4-conferir.png) | ![Opções de download](docs/prints/6-baixar.png) |
-| Edite qualquer valor e veja a prévia na hora. | .docx/.txt/.md, PDF, `.zip` com todos ou compartilhar. |
+| Edite qualquer valor e veja a prévia na hora. | .docx/.txt/.md, PDFs separados ou num arquivo só, `.zip` ou compartilhar. |
 
 ## Vários documentos de uma vez
 
@@ -81,11 +81,11 @@ O tipo é sugerido pelo nome do campo e pode ser trocado ou desligado em cada ca
 | `cnpj` | `12345678000190` | 12.345.678/0001-90 |
 | `cpf` | `12345678909` | 123.456.789-09 |
 | `cep` | `01310100` | 01310-100 |
-| `data`, `vencimento` | `3/11/26` | 03/11/2026 |
+| `data`, `vencimento` | `3/11/26` ou `010126` | 03/11/2026 · 01/01/2026 |
 | `data por extenso` | `03/11/2026` | 3 de novembro de 2026 |
 | `valor`, `preço`, `total` | `1500` | R$ 1.500,00 |
 
-Zeros à esquerda que o Excel costuma apagar (CNPJ, CPF, CEP) são recuperados.
+Zeros à esquerda que o Excel costuma apagar (CNPJ, CPF, CEP e datas como `010126`) são recuperados. Células no formato Data do Excel são lidas sem inverter dia e mês.
 
 ---
 
@@ -104,12 +104,14 @@ python3 tests/gerar_exemplos.py   # recria os documentos de exemplo
 python3 docs/gerar_prints.py      # recria os prints deste README
 ```
 
-**Estrutura:** HTML, CSS e JavaScript puros, sem build. `js/core.js` (campos e substituição), `js/format.js` (formatação), `js/sheet.js` (planilhas), `js/pdf.js` (PDF), `js/app.js` (telas), `sw.js` + `manifest.webmanifest` (app instalável e offline).
+**Estrutura:** HTML, CSS e JavaScript puros, sem build. `js/core.js` (campos e substituição), `js/format.js` (formatação), `js/sheet.js` (planilhas), `js/pdf.js` (PDF por impressão e PDFs diretos), `js/app.js` (telas), `sw.js` + `manifest.webmanifest` (app instalável e offline).
 
 **Bibliotecas incluídas** (`vendor/`):
 - [JSZip](https://stuk.github.io/jszip/) 3.10.1 (MIT)
 - [SheetJS CE](https://sheetjs.com/) 0.18.5 (Apache-2.0)
 - [docx-preview](https://github.com/VolodymyrBaydalka/docxjs) 0.4.1 (Apache-2.0)
 - [marked](https://marked.js.org/) 12.0.2 (MIT)
+- [jsPDF](https://github.com/parallax/jsPDF) 2.5.1 (MIT)
+- [html2canvas](https://html2canvas.hertzen.com/) 1.4.1 (MIT)
 
 Decisões, próximos passos e histórico: [ROADMAP.md](ROADMAP.md).

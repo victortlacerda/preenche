@@ -53,6 +53,7 @@ def to_review(page, rows):
 
 
 def shot(page, name, full=False, clip_h=None):
+    page.evaluate("() => { const t = document.getElementById('toast'); if (t) { t.style.transition = 'none'; t.className = 'toast'; } }")
     if clip_h:
         page.screenshot(path=str(OUT / name), clip={'x': 0, 'y': 0, 'width': page.viewport_size['width'], 'height': clip_h})
     else:
@@ -62,7 +63,7 @@ def shot(page, name, full=False, clip_h=None):
 
 def pdf_page_png(page, rows, out_png):
     page.evaluate('() => { window.print = () => { window.__printed = (window.__printed || 0) + 1; }; window.__printed = 0; }')
-    page.click('#btn-pdf')
+    page.click('#btn-print')
     page.wait_for_function('window.__printed > 0', timeout=20000)
     page.emulate_media(media='print')
     pdf = page.pdf(prefer_css_page_size=True, print_background=True)

@@ -2,7 +2,7 @@
 
 > Documento vivo: atualizamos a cada etapa do desenvolvimento.
 > **Legenda:** ✅ feito · 🚧 em andamento · 📝 planejado · ❓ decisão em aberto
-> **Última atualização:** 03/11/2026 — v0.2 (PDF + app instalável/offline)
+> **Última atualização:** 03/11/2026 — v0.3 (PDFs separados + datas da planilha)
 
 ---
 
@@ -150,7 +150,23 @@ Comparativo das formas possíveis:
 - "Compartilhar" depende do celular aceitar o tipo de arquivo; quando não aceita, o app avisa e o "Baixar" continua disponível.
 - No iPhone, o PDF é salvo pela tela de impressão (gesto de "pinça" na prévia ou "Salvar em Arquivos"), conforme a versão do iOS.
 
-### v0.3 — Conforto
+### v0.3 — PDFs separados e planilhas mais robustas ✅
+- [x] **PDFs separados em .zip**, um por documento, como os arquivos do Word (botão "Baixar N PDFs (.zip)")
+- [x] **Baixar PDF direto** (sem janela de impressão), também para um documento só; mais prático no celular
+  - Cada página em alta resolução (~190 dpi) com camada de texto invisível: dá para pesquisar e copiar o texto
+  - Quebra de página sem cortar linhas, tabelas ou imagens; respeita as quebras de página do Word
+  - jsPDF 2.5.1 e html2canvas 1.4.1 (MIT), carregados só na primeira vez que são usados
+- [x] "Imprimir" continua disponível (PDF com texto vetorial; no lote, um PDF único com todos)
+- [x] **Datas da planilha**
+  - Zero da frente apagado pelo Excel: `010126` → `10126` volta a ser **01/01/2026** (e `1012026` → 01/01/2026)
+  - Células no formato Data do Excel lidas sem inverter dia e mês (antes, 01/02 podia virar 2 de janeiro)
+  - Número de série de data do Excel (ex.: `46023`) reconhecido como data
+- [x] **Números da planilha** lidos pelo valor da célula: `1.500,50` com formato do Excel não vira mais "1,500.50"
+- [x] **CSV** lido como texto puro: `010126` e `03/11/2026` chegam exatamente como digitados
+
+**Dica para planilhas:** a planilha-modelo do app já vem com as células em formato Texto, o que evita esses problemas na origem. Se usar outra planilha, formate as colunas como Texto antes de digitar.
+
+### v0.4 — Conforto
 - [ ] Formatação: valor por extenso ("mil e quinhentos reais"), validação de dígito do CPF/CNPJ
 - [ ] Valor vazio intencional ("apagar o campo")
 - [ ] Renomear campo na conferência (altera o marcador no documento)
@@ -158,7 +174,7 @@ Comparativo das formas possíveis:
 - [ ] Atalhos de teclado e melhorias de acessibilidade
 - [ ] Marcar campos diretamente na prévia (selecionar texto → "transformar em campo")
 
-### v0.4 — Documentos legados
+### v0.5 — Documentos legados
 - [ ] Modo "texto destacado": reconhecer trechos em vermelho/amarelo no Word e pedir o nome do campo
 - [ ] Sugestão automática de campos (padrões de CNPJ, CPF, e-mail, telefone no texto)
 - [ ] `.odt` e `.rtf`
@@ -166,7 +182,8 @@ Comparativo das formas possíveis:
 ### v1.0 — Polimento
 - [ ] Salvar "perfis" de dados no navegador (opt-in, com aviso de privacidade)
 - [ ] Idiomas (EN/ES)
-- [ ] PDF com cabeçalho/rodapé repetidos em cada página e PDFs separados por documento (dentro do .zip)
+- [ ] PDF com cabeçalho/rodapé repetidos em cada página
+- [ ] Compartilhar como PDF no celular (hoje compartilha no formato original)
 - [ ] Receber arquivos pelo menu "Compartilhar" do celular (ex.: modelo vindo do WhatsApp direto para o app)
 - [ ] Abrir `.docx` com duplo clique no computador quando o app estiver instalado
 - [ ] Modo escuro opcional
@@ -201,7 +218,7 @@ preenche/
 │   ├── sheet.js        # planilha-modelo e importação
 │   ├── pdf.js          # salvar em PDF (impressão)
 │   └── app.js          # telas e fluxo
-├── vendor/             # JSZip, SheetJS, docx-preview, marked (sem CDN)
+├── vendor/             # JSZip, SheetJS, docx-preview, marked, jsPDF, html2canvas (sem CDN)
 ├── icons/              # ícones do app instalável
 ├── manifest.webmanifest # dados do app instalável (PWA)
 ├── sw.js               # funcionamento offline
@@ -226,3 +243,4 @@ Passo a passo no `README.md`. Resumo: subir a pasta para um repositório → *Se
 | 03/11/2026 | v0.1.1: logo volta ao início com confirmação; formatação automática por campo (8 tipos). 48 verificações automatizadas passando. |
 | 03/11/2026 | v0.2: salvar em PDF (1 documento ou lote num PDF só); PWA instalável e offline; compartilhar no celular. 65 verificações automatizadas passando (incl. PDF gerado e lido de volta, e uso offline via servidor http). |
 | 03/11/2026 | Projeto publicado no GitHub com CI de testes. README em formato de apresentação, com prints do app (desktop, celular, antes e depois) gerados por `docs/gerar_prints.py`. |
+| 03/11/2026 | v0.3: PDFs separados em .zip e PDF direto (sem impressão); datas e números da planilha robustos (zero perdido, células de data, CSV). 85 verificações automatizadas passando. |
