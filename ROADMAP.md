@@ -75,7 +75,7 @@ Comparativo das formas possíveis:
    - **Digitar manualmente:** o app pergunta campo por campo ("Campo 2 de 5 — telefone"), mostrando o trecho do documento onde ele aparece, com formatação automática. `Enter` avança, `Shift+Enter` quebra a linha.
    - **Usar planilha:** baixa a planilha-modelo já com os campos identificados → preenche → envia de volta.
 3. **Conferir** — lista de campos (editar valor, formatar, ignorar/restaurar, adicionar texto livre) + **prévia** do documento com destaque: verde = será trocado, âmbar = sem valor. Se houver várias linhas na planilha, navega entre os documentos (e pode adicionar ou remover).
-4. **Baixar** — no formato original (um arquivo ou `.zip`), em **PDF** (um arquivo ou `.zip` com um PDF por documento), **Imprimir** (lote num PDF único) ou **Compartilhar** no celular. Também dá para baixar os dados em planilha.
+4. **Baixar** — no formato original (um arquivo ou `.zip`), em **PDF** (um arquivo ou `.zip` com um PDF por documento), **Imprimir** (lote num PDF único) ou **Compartilhar** no celular (em PDF ou no formato original). Também dá para baixar os dados em planilha.
 
 O logo/nome no topo volta ao início (com confirmação se houver dados preenchidos).
 
@@ -156,7 +156,7 @@ O logo/nome no topo volta ao início (com confirmação se houver dados preenchi
 **Limitações conhecidas (v0.2)**
 - No PDF, cabeçalho e rodapé do Word aparecem uma vez (no início e no fim do documento), não repetidos em toda página.
 - Layouts muito elaborados do Word (caixas de texto flutuantes, colunas, formas) podem sair um pouco diferentes no PDF. O `.docx` baixado continua idêntico ao original.
-- "Compartilhar" depende do celular aceitar o tipo de arquivo; quando não aceita, o app avisa e o "Baixar" continua disponível.
+- "Compartilhar" depende do celular aceitar o tipo de arquivo. Desde a v0.3, dá para escolher PDF (aceito em praticamente todos) e a opção não aceita aparece desativada.
 - ~~No iPhone, o PDF só saía pela tela de impressão~~ → resolvido na v0.3 com "Baixar PDF" direto.
 
 ### v0.3 — PDFs separados e planilhas mais robustas ✅
@@ -168,6 +168,10 @@ O logo/nome no topo volta ao início (com confirmação se houver dados preenchi
   - Quebra de página sem cortar linhas, tabelas ou imagens; respeita as quebras de página do Word
   - jsPDF 2.5.1 e html2canvas 1.4.1 (MIT), carregados só na primeira vez que são usados
 - [x] "Imprimir" continua disponível (PDF com texto vetorial; no lote, um PDF único com todos)
+- [x] **Compartilhar** (celular): pergunta "PDF ou Word?" e abre a lista do sistema (WhatsApp, e-mail…)
+  - Só aparece em celular/tablet; no computador os navegadores aceitam poucos tipos de arquivo (o .docx dava "Permission denied")
+  - O PDF é preparado assim que a janela abre, para o envio ser imediato ao tocar (o celular cancela se houver demora)
+  - Formato que o aparelho não aceita aparece desativado com o motivo, em vez de dar erro
 
 **Planilha**
 - [x] **Datas da planilha**
@@ -203,7 +207,6 @@ O logo/nome no topo volta ao início (com confirmação se houver dados preenchi
 - [ ] Salvar "perfis" de dados no navegador (opt-in, com aviso de privacidade)
 - [ ] Idiomas (EN/ES)
 - [ ] PDF com cabeçalho/rodapé repetidos em cada página
-- [ ] Compartilhar como PDF no celular (hoje compartilha no formato original)
 - [ ] Receber arquivos pelo menu "Compartilhar" do celular (ex.: modelo vindo do WhatsApp direto para o app)
 - [ ] Abrir `.docx` com duplo clique no computador quando o app estiver instalado
 - [ ] Modo escuro opcional
@@ -269,3 +272,4 @@ preenche/
 | 03/11/2026 | Planilhas geradas pelo próprio app (formato Excel limpo): corrige o erro do Modo de Exibição Protegida ao abrir a planilha baixada. 88 verificações automatizadas. |
 | 03/11/2026 | Coluna extra na planilha vira troca de texto quando o cabeçalho aparece no documento. 96 verificações automatizadas. |
 | 03/11/2026 | Revisão geral do roadmap: arquitetura, fluxo, seção da planilha, decisões D3/D7 marcadas como decididas e estrutura de pastas atualizadas. |
+| 03/11/2026 | Compartilhar só no celular, escolhendo PDF ou formato original; mensagens de erro claras. 103 verificações automatizadas. |
